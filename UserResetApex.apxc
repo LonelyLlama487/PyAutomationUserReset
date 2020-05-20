@@ -1,0 +1,10 @@
+@RestResource(urlMapping='/User/*')
+global with sharing class UserResetApex {
+    @HttpPost
+    global static String resetUser(String uid) {
+        // Add your code
+        User u = [select id from user where id =: uid];
+        System.resetPassword(u.id, true);
+        return u.Id;
+    }
+}
