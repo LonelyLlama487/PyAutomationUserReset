@@ -23,12 +23,13 @@ def credParser():
 def sessionInitiator(uname,passkey,sec):
     try:
         s = sf(username=uname,password=passkey,security_token=sec)
-        print('Connected to : '+s.base_url)
+        #print('Connected to : '+s.base_url)
         return s
     except:
         print("[-]Session cannot be initiated")
 
-def passResetter(userCred,uid):
+def passResetter(uid):
+    userCred = credParser()
     payload = {
     'grant_type': 'password',
     'client_id': userCred['consumer_key'],
@@ -36,10 +37,11 @@ def passResetter(userCred,uid):
     'username': userCred['username'],
     'password': userCred['password'] + userCred['secret']
     }
-    checkInstance = check.query("SELECT Id, InstanceName, IsSandbox, Name, OrganizationType FROM Organization")
+    checkv2 = sessionInitiator(userCred['username'],userCred['password'],userCred['secret'])
+    checkInstance = checkv2.query("SELECT Id, InstanceName, IsSandbox, Name, OrganizationType FROM Organization")
     final_url = userCred['prod_url'] if (checkInstance['records'][0]['IsSandbox'] != "False") else userCred['sandbox_url']
     resp = req.post(final_url, data = payload, json = {})
-    
+
     if (resp.ok):
         tok = resp.json()['access_token']
         chk_url = resp.json()['instance_url'] + "/services/apexrest/User/"
@@ -47,6 +49,22 @@ def passResetter(userCred,uid):
         print(r.json())
     else:
         print("[-] Connection Ended with status code :" + resp.status_code)
+
+#Used for external calls for user reset outside for the chatbot
+def externalUserResetCallout(uname):
+    try:
+        userCred = credParser()
+        checkv2 = sessionInitiator(userCred['username'],userCred['password'],userCred['secret'])
+        print("Connected to : "+checkv2.base_url)
+        if(checkv2):
+            query = "select id,Name,Email from user where Name like '%"+uname+"%'";
+            op = checkv2.query_all(query)
+            if(not(len(op['records'][0]['Id'])>0)):
+                print(">User Not Found")
+            else:
+                passResetter(op['records'][0]['Id'])
+    except:
+        print("Cannot find user or you have entered some invalid input")
 
 if __name__ == '__main__' :
     try:
@@ -62,9 +80,8 @@ if __name__ == '__main__' :
 
             ch = str(input('[+]Are you sure you want to reset password for this user.(Y or N)'))
             if(ch == 'Y' and len(op['records'][0]['Id'])>0):
-                passResetter(userCred,op['records'][0]['Id'])
+                passResetter(op['records'][0]['Id'])
             else:
                 print("[+] Session Terminated Successfully")
     except:
         print("[-]Failed to Initiate")
-            
